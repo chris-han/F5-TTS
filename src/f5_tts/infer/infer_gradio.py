@@ -1,6 +1,6 @@
 # ruff: noqa: E402
 # Above allows ruff to ignore E402: module level import not at top of file
-
+import os
 import re
 import tempfile
 
@@ -39,7 +39,8 @@ from f5_tts.infer.utils_infer import (
 
 vocoder = load_vocoder()
 
-F5TTS_ckpt_file="/home/chris/repo/F5-TTS/ckpts/F5TTS_Base/model_1200000.pt"
+F5TTS_ckpt_file= os.path.join(os.path.dirname(__file__), "../../../ckpts/F5TTS_Base/model_1200000.pt")
+# model = os.path.join(os.path.dirname(__file__), "../../../ckpts/whisper"),
 # if not F5TTS_ckpt_file:
 #     F5TTS_ckpt_file = str(cached_path("hf://SWivid/F5-TTS/F5TTS_Base/model_1200000.safetensors"))
 # load models
@@ -48,7 +49,8 @@ F5TTS_ema_model = load_model(
     DiT, F5TTS_model_cfg, F5TTS_ckpt_file
 )
     
-E2TTS_ckpt_file="/home/chris/repo/F5-TTS/ckpts/E2TTS_Base/model_1200000.pt"
+E2TTS_ckpt_file= os.path.join(os.path.dirname(__file__), "../../../ckpts/E2TTS_Base/model_1200000.pt")
+# "/home/chris/repo/F5-TTS/ckpts/E2TTS_Base/model_1200000.pt"
 # if not E2TTS_ckpt_file:
 #     E2TTS_ckpt_file = str(cached_path("hf://SWivid/E2-TTS/E2TTS_Base/model_1200000.safetensors"))
 E2TTS_model_cfg = dict(dim=1024, depth=24, heads=16, ff_mult=4)

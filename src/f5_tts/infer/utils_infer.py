@@ -1,6 +1,6 @@
 # A unified script for inference process
 # Make adjustments inside functions, and consider both gradio and cli scripts if need to change func output format
-
+import os
 import hashlib
 import re
 import tempfile
@@ -103,7 +103,8 @@ def initialize_asr_pipeline(device=device):
     asr_pipe = pipeline(
         "automatic-speech-recognition",
         # model="openai/whisper-large-v3-turbo",
-        model="/home/chris/repo/F5-TTS/ckpts/whisper",
+        # model="/home/chris/repo/F5-TTS/ckpts/whisper",
+        model = os.path.join(os.path.dirname(__file__), "../../../ckpts/whisper"),
         torch_dtype=torch.float16,
         device=device,
     )
