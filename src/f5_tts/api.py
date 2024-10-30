@@ -22,7 +22,7 @@ class F5TTS:
     def __init__(
         self,
         model_type="F5-TTS",
-        ckpt_file="",
+        ckpt_file="../../ckpts/F5TTS_Base/model_1200000.pt",
         vocab_file="",
         ode_method="euler",
         use_ema=True,

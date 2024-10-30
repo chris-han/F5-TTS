@@ -39,16 +39,21 @@ from f5_tts.infer.utils_infer import (
 
 vocoder = load_vocoder()
 
-
+F5TTS_ckpt_file="/home/chris/repo/F5-TTS/ckpts/F5TTS_Base/model_1200000.pt"
+# if not F5TTS_ckpt_file:
+#     F5TTS_ckpt_file = str(cached_path("hf://SWivid/F5-TTS/F5TTS_Base/model_1200000.safetensors"))
 # load models
 F5TTS_model_cfg = dict(dim=1024, depth=22, heads=16, ff_mult=2, text_dim=512, conv_layers=4)
 F5TTS_ema_model = load_model(
-    DiT, F5TTS_model_cfg, str(cached_path("hf://SWivid/F5-TTS/F5TTS_Base/model_1200000.safetensors"))
+    DiT, F5TTS_model_cfg, F5TTS_ckpt_file
 )
-
+    
+E2TTS_ckpt_file="/home/chris/repo/F5-TTS/ckpts/E2TTS_Base/model_1200000.pt"
+# if not E2TTS_ckpt_file:
+#     E2TTS_ckpt_file = str(cached_path("hf://SWivid/E2-TTS/E2TTS_Base/model_1200000.safetensors"))
 E2TTS_model_cfg = dict(dim=1024, depth=24, heads=16, ff_mult=4)
 E2TTS_ema_model = load_model(
-    UNetT, E2TTS_model_cfg, str(cached_path("hf://SWivid/E2-TTS/E2TTS_Base/model_1200000.safetensors"))
+    UNetT, E2TTS_model_cfg, E2TTS_ckpt_file
 )
 
 chat_model_state = None

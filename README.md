@@ -27,7 +27,7 @@ conda create -n f5-tts python=3.10
 conda activate f5-tts
 
 # Install pytorch with your CUDA version, e.g.
-pip install torch==2.3.0+cu118 torchaudio==2.3.0+cu118 --extra-index-url https://download.pytorch.org/whl/cu118
+pip install torch==2.3.1 torchvision==0.18.1 torchaudio==2.3.1 --index-url https://download.pytorch.org/whl/cu121
 ```
 
 Then you can choose from a few options below:
@@ -36,6 +36,9 @@ Then you can choose from a few options below:
 
 ```bash
 pip install git+https://github.com/SWivid/F5-TTS.git
+
+sudo apt update
+sudo apt install ffmpeg
 ```
 
 ### 2. Local editable (if also do training, finetuning)
