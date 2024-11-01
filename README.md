@@ -23,7 +23,7 @@
 
 ```bash
 # Create a python 3.10 conda env (you could also use virtualenv)
-conda create -n f5-tts python=3.10
+conda create -n f5-tts python=3.11
 conda activate f5-tts
 
 # Install pytorch with your CUDA version, e.g.

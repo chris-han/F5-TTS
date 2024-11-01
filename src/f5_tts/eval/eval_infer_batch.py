@@ -122,9 +122,9 @@ def main():
     )
 
     # Vocoder model
-    local = False
+    local = True
     if local:
-        vocos_local_path = "../checkpoints/charactr/vocos-mel-24khz"
+        vocos_local_path =  os.path.join(os.path.dirname(__file__), "../../../ckpts/charactr/vocos-mel-24khz")
         vocos = Vocos.from_hparams(f"{vocos_local_path}/config.yaml")
         state_dict = torch.load(f"{vocos_local_path}/pytorch_model.bin", weights_only=True, map_location=device)
         vocos.load_state_dict(state_dict)

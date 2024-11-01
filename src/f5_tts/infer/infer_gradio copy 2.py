@@ -8,6 +8,7 @@ import click
 import gradio as gr
 import numpy as np
 import soundfile as sf
+import torch
 import torchaudio
 from cached_path import cached_path
 from transformers import AutoModelForCausalLM, AutoTokenizer
@@ -38,7 +39,9 @@ from f5_tts.infer.utils_infer import (
 )
 
 vocos_local_path =  os.path.join(os.path.dirname(__file__), "../../../ckpts/charactr/vocos-mel-24khz")
-vocoder = load_vocoder(is_local=True, local_path=vocos_local_path) # default device="cuda"
+# use gpu deviceif available
+device = "cuda" if torch.cuda.is_available() else "cpu"
+vocoder = load_vocoder(is_local=True, local_path=vocos_local_path, device=device)# vocos_mel_24khz
 
 F5TTS_ckpt_file = os.path.join(os.path.dirname(__file__), "../../../ckpts/F5TTS_Base/model_1200000.pt")
 F5TTS_model_cfg = dict(dim=1024, depth=22, heads=16, ff_mult=2, text_dim=512, conv_layers=4)
@@ -50,6 +53,7 @@ E2TTS_ema_model = load_model(UNetT, E2TTS_model_cfg, E2TTS_ckpt_file)
 
 chat_model_state = None
 chat_tokenizer_state = None
+use_progress = True
 
 
 @gpu_decorator
@@ -79,13 +83,20 @@ def generate_response(messages, model, tokenizer):
 def infer(
     ref_audio_orig, ref_text, gen_text, model, remove_silence, cross_fade_duration=0.15, speed=1, show_info=gr.Info
 ):
-    ref_audio, updated_ref_text = preprocess_ref_audio_text(ref_audio_orig, ref_text, show_info=show_info)
 
     if model == "F5-TTS":
         ema_model = F5TTS_ema_model
     elif model == "E2-TTS":
         ema_model = E2TTS_ema_model
 
+    # If ref_text is provided, use it directly; otherwise, preprocess the audio to get the ref_text
+    # if ref_text:
+    #     ref_audio, updated_ref_text = ref_audio_orig, ref_text
+    # else:
+    ref_audio, updated_ref_text = preprocess_ref_audio_text(ref_audio_orig, ref_text, show_info=show_info)
+    # Conditionally create progress depending on use_progress flag
+    progress = gr.Progress() #if use_progress else None
+        
     final_wave, final_sample_rate, combined_spectrogram = infer_process(
         ref_audio,
         updated_ref_text,
@@ -95,10 +106,10 @@ def infer(
         cross_fade_duration=cross_fade_duration,
         speed=speed,
         show_info=show_info,
-        progress=gr.Progress(),
+        progress=progress,  # Conditionally assign the progress bar
     )
-
-    # Remove silence
+    
+    # Remove silence logic
     if remove_silence:
         with tempfile.NamedTemporaryFile(delete=False, suffix=".wav") as f:
             sf.write(f.name, final_wave, final_sample_rate)
@@ -113,6 +124,29 @@ def infer(
 
     return (final_sample_rate, final_wave), spectrogram_path, updated_ref_text
 
+def parse_speechtypes_text(gen_text):
+    # Pattern to find {speechtype}
+    pattern = r"\{(.*?)\}"
+
+    # Split the text by the pattern
+    tokens = re.split(pattern, gen_text)
+
+    segments = []
+
+    current_style = "Regular"
+
+    for i in range(len(tokens)):
+        if i % 2 == 0:
+            # This is text
+            text = tokens[i].strip()
+            if text:
+                segments.append({"style": current_style, "text": text})
+        else:
+            # This is style
+            style = tokens[i].strip()
+            current_style = style
+
+    return segments
 
 def parse_script(script):
     pattern = r"(\w+):\s*(.*)"
@@ -182,6 +216,7 @@ with gr.Blocks() as app_podcast:
             if speaker_name in speakers:
                 ref_audio = speakers[speaker_name]["audio"]
                 ref_text = speakers[speaker_name]["ref_text"]
+                use_progress = not ref_text  # Only use progress if ref_text is empty
 
                 audio, _, updated_ref_text = infer(
                     ref_audio, ref_text, text, model_choice, remove_silence, 0, show_info=print
@@ -578,8 +613,8 @@ Have a conversation with an AI using your reference voice!
 
         if chat_model_state is None:
             model_name = "Qwen/Qwen2.5-3B-Instruct"
-            chat_model_state = AutoModelForCausalLM.from_pretrained(model_name, torch_dtype="auto", device_map="auto")
-            chat_tokenizer_state = AutoTokenizer.from_pretrained(model_name)
+            # chat_model_state = AutoModelForCausalLM.from_pretrained(model_name, torch_dtype="auto", device_map="auto")
+            # chat_tokenizer_state = AutoTokenizer.from_pretrained(model_name)
 
     with chat_interface_container:
         with gr.Row():
