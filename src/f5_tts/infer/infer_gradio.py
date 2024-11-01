@@ -37,8 +37,14 @@ from f5_tts.infer.utils_infer import (
     save_spectrogram,
 )
 
-vocos_local_path =  os.path.join(os.path.dirname(__file__), "../../../ckpts/charactr/vocos-mel-24khz")
-vocoder = load_vocoder(is_local=True, local_path=vocos_local_path) # default device="cuda"
+mel_spec_type = "vocos" #or bigvgan
+if mel_spec_type == "vocos":
+    vocoder_local_path =  os.path.join(os.path.dirname(__file__), "../../../ckpts/charactr/vocos-mel-24khz")
+else:
+    vocoder_local_path =  os.path.join(os.path.dirname(__file__), "../../../ckpts/nvidia")
+
+# vocoder = load_vocoder(vocoder_name="vocos", is_local=True, local_path=vocoder_local_path) # default device="cuda"
+vocoder = load_vocoder(vocoder_name=mel_spec_type, is_local=True, local_path=vocoder_local_path) # default device="cuda"
 
 F5TTS_ckpt_file = os.path.join(os.path.dirname(__file__), "../../../ckpts/F5TTS_Base/model_1200000.pt")
 F5TTS_model_cfg = dict(dim=1024, depth=22, heads=16, ff_mult=2, text_dim=512, conv_layers=4)
@@ -92,6 +98,7 @@ def infer(
         gen_text,
         ema_model,
         vocoder,
+        mel_spec_type,
         cross_fade_duration=cross_fade_duration,
         speed=speed,
         show_info=show_info,

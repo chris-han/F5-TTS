@@ -3,8 +3,8 @@
 import os
 import sys
 
-sys.path.append(f"../../{os.path.dirname(os.path.abspath(__file__))}/third_party/BigVGAN/")
-
+# sys.path.append(f"../../{os.path.dirname(os.path.abspath(__file__))}/third_party/BigVGAN/")
+sys.path.append(os.path.join(os.path.dirname(os.path.abspath(__file__)), '../../third_party/BigVGAN'))
 import hashlib
 import re
 import tempfile
@@ -87,7 +87,7 @@ def chunk_text(text, max_chars=135):
 
 
 # load vocoder
-def load_vocoder(vocoder_name="vocos", is_local=False, local_path="", device=device):
+def load_vocoder(vocoder_name="bigvgan", is_local=False, local_path="", device=device):
     if vocoder_name == "vocos":
         if is_local:
             print(f"Load vocos from local path {local_path}")
@@ -105,7 +105,7 @@ def load_vocoder(vocoder_name="vocos", is_local=False, local_path="", device=dev
             print("You need to follow the README to init submodule and change the BigVGAN source code.")
         if is_local:
             """download from https://huggingface.co/nvidia/bigvgan_v2_24khz_100band_256x/tree/main"""
-            vocoder = bigvgan.BigVGAN.from_pretrained(local_path, use_cuda_kernel=False)
+            vocoder = bigvgan.BigVGAN.from_pretrained(pretrained_model_name_or_path=local_path, local_files_only=True, use_cuda_kernel=False)
         else:
             vocoder = bigvgan.BigVGAN.from_pretrained("nvidia/bigvgan_v2_24khz_100band_256x", use_cuda_kernel=False)
 

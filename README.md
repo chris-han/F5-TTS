@@ -35,7 +35,7 @@ Then you can choose from a few options below:
 ### 1. As a pip package (if just for inference)
 
 ```bash
-pip install git+https://github.com/SWivid/F5-TTS.git
+pip install git+https://github.com/chris-han/F5-TTS.git
 
 sudo apt update
 sudo apt install ffmpeg
@@ -44,7 +44,7 @@ sudo apt install ffmpeg
 ### 2. Local editable (if also do training, finetuning)
 
 ```bash
-git clone https://github.com/SWivid/F5-TTS.git
+git clone https://github.com/chris-han/F5-TTS.git
 cd F5-TTS
 # git submodule update --init --recursive  # (optional, if need bigvgan)
 pip install -e .
