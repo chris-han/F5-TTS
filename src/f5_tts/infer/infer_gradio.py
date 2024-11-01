@@ -199,6 +199,14 @@ with gr.Blocks() as app_podcast:
             return (sr, final_audio_data), updated_ref_texts[speaker1_name], updated_ref_texts[speaker2_name]
         else:
             return None, None, None
+        
+    def clear_audio_ref_text():
+        return ""
+
+    # Attach change events to clear the reference texts
+    speaker1_audio.change(clear_audio_ref_text, inputs=[], outputs=[speaker1_ref_text])
+    speaker2_audio.change(clear_audio_ref_text, inputs=[], outputs=[speaker2_ref_text])
+            
 
     podcast_generate_btn.click(
         lambda speaker1_name, speaker1_audio, speaker1_ref_text, speaker2_name, speaker2_audio, speaker2_ref_text, script, model_choice, remove_silence: generate_podcast_speech(
