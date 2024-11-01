@@ -4,7 +4,7 @@ USER root
 
 ARG DEBIAN_FRONTEND=noninteractive
 
-LABEL github_repo="https://github.com/SWivid/F5-TTS"
+LABEL github_repo="https://github.com/chris-han/F5-TTS.git"
 
 RUN set -x \
     && apt-get update \
@@ -15,7 +15,7 @@ RUN set -x \
 
 WORKDIR /workspace
 
-RUN git clone https://github.com/SWivid/F5-TTS.git \
+RUN git clone https://github.com/chris-han/F5-TTS.git \
     && cd F5-TTS \
     && pip install -e .[eval]
 
