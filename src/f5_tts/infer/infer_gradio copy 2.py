@@ -38,7 +38,6 @@ from f5_tts.infer.utils_infer import (
     save_spectrogram,
 )
 
-# load models
 mel_spec_type = "vocos" #or bigvgan
 if mel_spec_type == "vocos":
     vocoder_local_path =  os.path.join(os.path.dirname(__file__), "../../../ckpts/charactr/vocos-mel-24khz")
@@ -123,7 +122,7 @@ def infer(
     return (final_sample_rate, final_wave), spectrogram_path, updated_ref_text
 
 
-def parse_podcast_script(script):
+def parse_script(script):
     pattern = r"(\w+):\s*(.*)"
     segments = re.findall(pattern, script)
     return segments
@@ -137,12 +136,109 @@ with gr.Blocks() as app_credits:
 * [RootingInLoad](https://github.com/RootingInLoad) for initial chunk generation and podcast app exploration
 * [jpgallegoar](https://github.com/jpgallegoar) for multiple speech-type generation & voice chat
 """)
+
+# Other tabs code...
+
+with gr.Blocks() as app_podcast:
+    gr.Markdown("# Podcast TTS")
+
+    with gr.Row():
+        with gr.Column():
+            speaker1_name = gr.Textbox(label="Speaker 1 Name", placeholder="e.g., Alice")
+            speaker1_audio = gr.Audio(label="Speaker 1 Reference Audio", type="filepath")
+            speaker1_ref_text = gr.Textbox(label="Speaker 1 Reference Text", lines=2)
+        with gr.Column():
+            speaker2_name = gr.Textbox(label="Speaker 2 Name", placeholder="e.g., Bob")
+            speaker2_audio = gr.Audio(label="Speaker 2 Reference Audio", type="filepath")
+            speaker2_ref_text = gr.Textbox(label="Speaker 2 Reference Text", lines=2)
+
+    podcast_script = gr.Textbox(
+        label="Text to Generate",
+        lines=10,
+        placeholder="Format: Speaker name: speech text (e.g., Alice: Hi Bob! How are you?)",
+    )
+    podcast_model_choice = gr.Radio(choices=["F5-TTS", "E2-TTS"], label="Choose TTS Model", value="F5-TTS")
+    podcast_generate_btn = gr.Button("Generate Podcast", variant="primary")
+
+    podcast_audio_output = gr.Audio(label="Podcast Audio")
+
+    @gpu_decorator
+    def generate_podcast_speech(speaker1_name, speaker1_audio, speaker1_ref_text, speaker2_name, speaker2_audio, speaker2_ref_text, script, model_choice, remove_silence):
+        if not speaker1_name or not speaker2_name:
+            return None, None, None
+
+        speakers = {
+            speaker1_name: {
+                "audio": speaker1_audio,
+                "ref_text": speaker1_ref_text or ""
+            },
+            speaker2_name: {
+                "audio": speaker2_audio,
+                "ref_text": speaker2_ref_text or ""
+            }
+        }
+
+        segments = parse_speechtypes_text(script)
+        generated_audio_segments = []
+
+        updated_ref_texts = {
+            speaker1_name: None,
+            speaker2_name: None,
+        }
+
+        for speaker_name, text in segments:
+            if speaker_name in speakers:
+                ref_audio = speakers[speaker_name]["audio"]
+                ref_text = speakers[speaker_name]["ref_text"]
+
+                audio, _, updated_ref_text = infer(
+                    ref_audio, ref_text, text, model_choice, remove_silence, 0, show_info=print
+                )
+                
+                # Update the reference text for the speaker if it is None
+                if updated_ref_texts[speaker_name] is None:
+                    updated_ref_texts[speaker_name] = updated_ref_text
+                    
+                sr, audio_data = audio
+                generated_audio_segments.append(audio_data)
+
+        if generated_audio_segments:
+            final_audio_data = np.concatenate(generated_audio_segments)
+            return (sr, final_audio_data), updated_ref_texts[speaker1_name], updated_ref_texts[speaker2_name]
+        else:
+            return None, None, None
+        
+    def clear_audio_ref_text():
+        return ""
+
+    # Attach change events to clear the reference texts
+    speaker1_audio.change(clear_audio_ref_text, inputs=[], outputs=[speaker1_ref_text])
+    speaker2_audio.change(clear_audio_ref_text, inputs=[], outputs=[speaker2_ref_text])
+            
+
+    podcast_generate_btn.click(
+        lambda speaker1_name, speaker1_audio, speaker1_ref_text, speaker2_name, speaker2_audio, speaker2_ref_text, script, model_choice, remove_silence: generate_podcast_speech(
+        speaker1_name, speaker1_audio, speaker1_ref_text, speaker2_name, speaker2_audio, speaker2_ref_text, script, model_choice, remove_silence
+        ),
+        inputs=[
+            speaker1_name, speaker1_audio, speaker1_ref_text, 
+            speaker2_name, speaker2_audio, speaker2_ref_text, 
+            podcast_script, podcast_model_choice, gr.Checkbox(label="Remove Silences")
+        ],
+        outputs=[
+            podcast_audio_output, 
+            speaker1_ref_text,  # Update textboxes with transcribed reference text
+            speaker2_ref_text
+        ],
+    )
+
 with gr.Blocks() as app_tts:
     gr.Markdown("# Batched TTS")
     ref_audio_input = gr.Audio(label="Reference Audio", type="filepath")
     gen_text_input = gr.Textbox(label="Text to Generate", lines=10)
     model_choice = gr.Radio(choices=["F5-TTS", "E2-TTS"], label="Choose TTS Model", value="F5-TTS")
     generate_btn = gr.Button("Synthesize", variant="primary")
+    
     with gr.Accordion("Advanced Settings", open=False):
         ref_text_input = gr.Textbox(
             label="Reference Text",
@@ -187,7 +283,6 @@ with gr.Blocks() as app_tts:
         ],
         outputs=[audio_output, spectrogram_output, ref_text_input],  # Update ref_text_input here
     )
-
 
 def parse_speechtypes_text(gen_text):
     # Pattern to find {speechtype}
@@ -420,13 +515,11 @@ with gr.Blocks() as app_multistyle:
                 ref_audio, ref_text, text, model_choice, remove_silence, 0, show_info=print
             )
             
-            
             # Update the reference text in dictionary
             if not speech_types[current_style]["ref_text"] and updated_ref_text:
                 speech_types[current_style]["ref_text"] = updated_ref_text
 
             sr, audio_data = audio
-
             generated_audio_segments.append(audio_data)
 
         # Concatenate all audio segments
@@ -486,7 +579,6 @@ with gr.Blocks() as app_multistyle:
         inputs=[gen_text_input_multistyle, regular_name] + speech_type_names,
         outputs=generate_multistyle_btn,
     )
-
 
 with gr.Blocks() as app_chat:
     gr.Markdown(
@@ -582,7 +674,6 @@ Have a conversation with an AI using your reference voice!
             ]
         )
 
-        # Modify process_audio_input to use model and tokenizer from state
         @gpu_decorator
         def process_audio_input(audio_path, text, history, conv_state):
             """Handle audio or text input from user"""
@@ -624,7 +715,7 @@ Have a conversation with an AI using your reference voice!
                 remove_silence,
                 cross_fade_duration=0.15,
                 speed=1.0,
-                show_info=print,  # show_info=print no pull to top when generating
+                show_info=print,
             )
             return audio_result
 
@@ -700,104 +791,9 @@ Have a conversation with an AI using your reference voice!
             outputs=[chatbot_interface, conversation_state],
         )
 
-with gr.Blocks() as app_podcast:
-    gr.Markdown("# Podcast TTS")
-
-    with gr.Row():
-        with gr.Column():
-            speaker1_name = gr.Textbox(label="Speaker 1 Name", placeholder="e.g., Alice")
-            speaker1_audio = gr.Audio(label="Speaker 1 Reference Audio", type="filepath")
-            speaker1_ref_text = gr.Textbox(label="Speaker 1 Reference Text", lines=2)
-        with gr.Column():
-            speaker2_name = gr.Textbox(label="Speaker 2 Name", placeholder="e.g., Bob")
-            speaker2_audio = gr.Audio(label="Speaker 2 Reference Audio", type="filepath")
-            speaker2_ref_text = gr.Textbox(label="Speaker 2 Reference Text", lines=2)
-
-    podcast_script = gr.Textbox(
-        label="Text to Generate",
-        lines=10,
-        placeholder="Format: Speaker name: speech text (e.g., Alice: Hi Bob! How are you?)",
-    )
-    podcast_model_choice = gr.Radio(choices=["F5-TTS", "E2-TTS"], label="Choose TTS Model", value="F5-TTS")
-    podcast_generate_btn = gr.Button("Generate Podcast", variant="primary")
-
-    podcast_audio_output = gr.Audio(label="Podcast Audio")
-
-    @gpu_decorator
-    def generate_podcast_speech(speaker1_name, speaker1_audio, speaker1_ref_text, speaker2_name, speaker2_audio, speaker2_ref_text, script, model_choice, remove_silence):
-        if not speaker1_name or not speaker2_name:
-            return None, None, None
-
-        speakers = {
-            speaker1_name: {
-                "audio": speaker1_audio,
-                "ref_text": speaker1_ref_text or ""
-            },
-            speaker2_name: {
-                "audio": speaker2_audio,
-                "ref_text": speaker2_ref_text or ""
-            }
-        }
-
-        segments = parse_podcast_script(script)
-        # segments = parse_speechtypes_text(script)     
-        generated_audio_segments = []
-
-        updated_ref_texts = {
-            speaker1_name: None,
-            speaker2_name: None,
-        }
-
-        for speaker_name, text in segments:
-            if speaker_name in speakers:
-                ref_audio = speakers[speaker_name]["audio"]
-                ref_text = speakers[speaker_name]["ref_text"]
-
-                audio, _, updated_ref_text = infer(
-                    ref_audio, ref_text, text, model_choice, remove_silence, 0, show_info=print
-                )
-                
-                # Update the reference text for the speaker if it is None
-                if updated_ref_texts[speaker_name] is None:
-                    updated_ref_texts[speaker_name] = updated_ref_text
-                    
-                sr, audio_data = audio
-                generated_audio_segments.append(audio_data)
-
-        if generated_audio_segments:
-            final_audio_data = np.concatenate(generated_audio_segments)
-            return (sr, final_audio_data), updated_ref_texts[speaker1_name], updated_ref_texts[speaker2_name]
-        else:
-            return None, None, None
-        
-    def clear_audio_ref_text():
-        return ""
-
-    # Attach change events to clear the reference texts
-    speaker1_audio.change(clear_audio_ref_text, inputs=[], outputs=[speaker1_ref_text])
-    speaker2_audio.change(clear_audio_ref_text, inputs=[], outputs=[speaker2_ref_text])
-            
-
-    podcast_generate_btn.click(
-        lambda speaker1_name, speaker1_audio, speaker1_ref_text, speaker2_name, speaker2_audio, speaker2_ref_text, script, model_choice, remove_silence: generate_podcast_speech(
-        speaker1_name, speaker1_audio, speaker1_ref_text, speaker2_name, speaker2_audio, speaker2_ref_text, script, model_choice, remove_silence
-        ),
-        inputs=[
-            speaker1_name, speaker1_audio, speaker1_ref_text, 
-            speaker2_name, speaker2_audio, speaker2_ref_text, 
-            podcast_script, podcast_model_choice, gr.Checkbox(label="Remove Silences")
-        ],
-        outputs=[
-            podcast_audio_output, 
-            speaker1_ref_text,  # Update textboxes with transcribed reference text
-            speaker2_ref_text
-        ],
-    )
-
-
 with gr.Blocks() as app:
-    gr.Markdown(
-        """
+    # Main description markdown
+    gr.Markdown("""
 # E2/F5 TTS
 
 This is a local web UI for F5 TTS with advanced batch processing support. This app supports the following TTS models:
@@ -810,13 +806,12 @@ The checkpoints support English and Chinese.
 If you're having issues, try converting your reference audio to WAV or MP3, clipping it to 15s, and shortening your prompt.
 
 **NOTE: Reference text will be automatically transcribed with Whisper if not provided. For best results, keep your reference clips short (<15s). Ensure the audio is fully uploaded before generating.**
-"""
-    )
+""")
+    # Tabbed interface
     gr.TabbedInterface(
         [app_tts, app_multistyle, app_chat, app_podcast, app_credits],
         ["TTS", "Multi-Speech", "Voice-Chat", "Podcast", "Credits"],
     )
-
 
 @click.command()
 @click.option("--port", "-p", default=None, type=int, help="Port to run the app on")
@@ -833,7 +828,6 @@ def main(port, host, share, api):
     global app
     print("Starting app...")
     app.queue(api_open=api).launch(server_name=host, server_port=port, share=share, show_api=api)
-
 
 if __name__ == "__main__":
     if not USING_SPACES:
