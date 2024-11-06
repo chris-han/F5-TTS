@@ -511,7 +511,8 @@ Have a conversation with an AI using your reference voice!
             if chat_model_state is None:
                 show_info = gr.Info
                 show_info("Loading chat model...")
-                model_name = "Qwen/Qwen2.5-3B-Instruct"
+                # model_name = "Qwen/Qwen2.5-3B-Instruct"
+                model_name = os.path.join(os.path.dirname(__file__), "../../../ckpts/Qwen2.5-3B-Instruct")
                 chat_model_state = AutoModelForCausalLM.from_pretrained(
                     model_name, torch_dtype="auto", device_map="auto"
                 )
@@ -616,15 +617,18 @@ Have a conversation with an AI using your reference voice!
             if not last_ai_response:
                 return None
 
-            audio_result, _ = infer(
-                ref_audio,
-                ref_text,
-                last_ai_response,
-                model,
-                remove_silence,
-                cross_fade_duration=0.15,
-                speed=1.0,
-                show_info=print,  # show_info=print no pull to top when generating
+            # audio_result, _ = infer(
+            #     ref_audio,
+            #     ref_text,
+            #     last_ai_response,
+            #     model,
+            #     remove_silence,
+            #     cross_fade_duration=0.15,
+            #     speed=1.0,
+            #     show_info=print,  # show_info=print no pull to top when generating
+            # )
+            audio_result, _, updated_ref_text = infer(
+                ref_audio, ref_text, last_ai_response, model, remove_silence, cross_fade_duration=0.15, speed=1.0, show_info=print
             )
             return audio_result
 
