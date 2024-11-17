@@ -122,7 +122,9 @@ asr_pipe = None
 def initialize_asr_pipeline(device=device, dtype=None):
     if dtype is None:
         dtype = (
-            torch.float16 if device == "cuda" and torch.cuda.get_device_properties(device).major >= 6 else torch.float32
+            torch.float16
+            if torch.cuda.is_available() and torch.cuda.get_device_properties(device).major >= 6
+            else torch.float32
         )
     global asr_pipe
     asr_pipe = pipeline(
@@ -134,13 +136,31 @@ def initialize_asr_pipeline(device=device, dtype=None):
     )
 
 
+# transcribe
+
+
+def transcribe(ref_audio, language=None):
+    global asr_pipe
+    if asr_pipe is None:
+        initialize_asr_pipeline(device=device)
+    return asr_pipe(
+        ref_audio,
+        chunk_length_s=30,
+        batch_size=128,
+        generate_kwargs={"task": "transcribe", "language": language} if language else {"task": "transcribe"},
+        return_timestamps=False,
+    )["text"].strip()
+
+
 # load model checkpoint for inference
 
 
 def load_checkpoint(model, ckpt_path, device, dtype=None, use_ema=True):
     if dtype is None:
         dtype = (
-            torch.float16 if device == "cuda" and torch.cuda.get_device_properties(device).major >= 6 else torch.float32
+            torch.float16
+            if torch.cuda.is_available() and torch.cuda.get_device_properties(device).major >= 6
+            else torch.float32
         )
     model = model.to(dtype)
 
@@ -148,9 +168,9 @@ def load_checkpoint(model, ckpt_path, device, dtype=None, use_ema=True):
     if ckpt_type == "safetensors":
         from safetensors.torch import load_file
 
-        checkpoint = load_file(ckpt_path)
+        checkpoint = load_file(ckpt_path, device=device)
     else:
-        checkpoint = torch.load(ckpt_path, weights_only=True)
+        checkpoint = torch.load(ckpt_path, map_location=device, weights_only=True)
 
     if use_ema:
         if ckpt_type == "safetensors":
@@ -171,6 +191,9 @@ def load_checkpoint(model, ckpt_path, device, dtype=None, use_ema=True):
         if ckpt_type == "safetensors":
             checkpoint = {"model_state_dict": checkpoint}
         model.load_state_dict(checkpoint["model_state_dict"])
+
+    del checkpoint
+    torch.cuda.empty_cache()
 
     return model.to(device)
 
@@ -283,29 +306,19 @@ def preprocess_ref_audio_text(ref_audio_orig, ref_text, clip_short=True, show_in
         audio_data = audio_file.read()
         audio_hash = hashlib.md5(audio_data).hexdigest()
 
-    global _ref_audio_cache
-    if audio_hash in _ref_audio_cache:
-        # Use cached reference text
-        show_info("Using cached reference text...")
-        ref_text = _ref_audio_cache[audio_hash]
-    else:
-        if not ref_text.strip():
-            global asr_pipe
-            if asr_pipe is None:
-                initialize_asr_pipeline(device=device)
-            show_info("No reference text provided, transcribing reference audio...")
-            ref_text = asr_pipe(
-                ref_audio,
-                chunk_length_s=30,
-                batch_size=128,
-                generate_kwargs={"task": "transcribe"},
-                return_timestamps=False,
-            )["text"].strip()
-            show_info("Finished transcription")
+    if not ref_text.strip():
+        global _ref_audio_cache
+        if audio_hash in _ref_audio_cache:
+            # Use cached asr transcription
+            show_info("Using cached reference text...")
+            ref_text = _ref_audio_cache[audio_hash]
         else:
-            show_info("Using custom reference text...")
-        # Cache the transcribed text
-        _ref_audio_cache[audio_hash] = ref_text
+            show_info("No reference text provided, transcribing reference audio...")
+            ref_text = transcribe(ref_audio)
+            # Cache the transcribed text (not caching custom ref_text, enabling users to do manual tweak)
+            _ref_audio_cache[audio_hash] = ref_text
+    else:
+        show_info("Using custom reference text...")
 
     # Ensure ref_text ends with a proper sentence-ending punctuation
     if not ref_text.endswith(". ") and not ref_text.endswith("。"):
