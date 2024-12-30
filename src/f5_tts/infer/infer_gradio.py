@@ -46,7 +46,7 @@ F5TTS_ema_model = load_model(DiT, F5TTS_model_cfg, F5TTS_ckpt_file)
 
 E2TTS_ckpt_file = os.path.join(os.path.dirname(__file__), "../../../ckpts/E2TTS_Base/model_1200000.pt")
 E2TTS_model_cfg = dict(dim=1024, depth=24, heads=16, ff_mult=4)
-E2TTS_ema_model = load_model(UNetT, E2TTS_model_cfg, E2TTS_ckpt_file)
+# E2TTS_ema_model = load_model(UNetT, E2TTS_model_cfg, E2TTS_ckpt_file)
 
 chat_model_state = None
 chat_tokenizer_state = None
@@ -83,8 +83,8 @@ def infer(
 
     if model == "F5-TTS":
         ema_model = F5TTS_ema_model
-    elif model == "E2-TTS":
-        ema_model = E2TTS_ema_model
+    # elif model == "E2-TTS":
+    #     ema_model = E2TTS_ema_model
 
     final_wave, final_sample_rate, combined_spectrogram = infer_process(
         ref_audio,
@@ -149,7 +149,8 @@ with gr.Blocks() as app_podcast:
         lines=10,
         placeholder="Format: Speaker name: speech text (e.g., Alice: Hi Bob! How are you?)",
     )
-    podcast_model_choice = gr.Radio(choices=["F5-TTS", "E2-TTS"], label="Choose TTS Model", value="F5-TTS")
+    # podcast_model_choice = gr.Radio(choices=["F5-TTS", "E2-TTS"], label="Choose TTS Model", value="F5-TTS")
+    podcast_model_choice = gr.Radio(choices=["F5-TTS"], label="Choose TTS Model", value="F5-TTS")
     podcast_generate_btn = gr.Button("Generate Podcast", variant="primary")
 
     podcast_audio_output = gr.Audio(label="Podcast Audio")

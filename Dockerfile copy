@@ -1,0 +1,51 @@
+# Stage 1: Build Stage
+FROM nvcr.io/nvidia/cuda:12.4.1-cudnn-runtime-ubuntu22.04 AS builder
+
+USER root
+ARG DEBIAN_FRONTEND=noninteractive
+
+LABEL github_repo="https://github.com/chris-han/F5-TTS.git"
+
+# Install Python 3.11
+RUN apt-get update && apt-get install -y software-properties-common \
+    && add-apt-repository ppa:deadsnakes/ppa \
+    && apt-get update && apt-get install -y python3.11 python3.11-venv python3-pip \
+    && ln -sf /usr/bin/python3.11 /usr/bin/python3 \
+    && ln -sf /usr/bin/pip3 /usr/bin/pip
+
+RUN apt-get update \
+    && apt-get -y install wget curl git unzip aria2 build-essential \
+    && apt-get install -y openssh-server sox libsox-fmt-all libsox-fmt-mp3 libsndfile1-dev ffmpeg \
+    && rm -rf /var/lib/apt/lists/* \
+    && apt-get clean
+
+WORKDIR /workspace
+
+RUN git clone -b dev https://github.com/chris-han/F5-TTS.git \
+    && cd F5-TTS \
+    && pip install --upgrade pip
+WORKDIR /workspace/F5-TTS 
+RUN pip install -e .
+
+# Stage 2: Final Stage
+FROM nvcr.io/nvidia/cuda:12.4.1-cudnn-runtime-ubuntu22.04
+
+USER root
+ARG DEBIAN_FRONTEND=noninteractive
+
+# Install necessary runtime libraries
+RUN apt-get update \
+    && apt-get -y install openssh-server sox libsox-fmt-all libsox-fmt-mp3 libsndfile1-dev ffmpeg \
+    && rm -rf /var/lib/apt/lists/* \
+    && apt-get clean
+
+WORKDIR /workspace
+COPY --from=builder /workspace/F5-TTS /workspace/F5-TTS
+COPY ./ckpts /workspace/F5-TTS/ckpts
+
+ENV SHELL=/bin/bash
+
+WORKDIR /workspace/F5-TTS
+EXPOSE 7860
+
+# CMD ["f5-tts_infer-gradio", "--port", "7860", "--host", "0.0.0.0"]
