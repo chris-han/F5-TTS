@@ -13,12 +13,21 @@ RUN set -x \
     && rm -rf /var/lib/apt/lists/* \
     && apt-get clean
 
+
 WORKDIR /workspace
 
-RUN git clone https://github.com/chris-han/F5-TTS.git \
+RUN git clone -b dev https://github.com/chris-han/F5-TTS.git \
     && cd F5-TTS \
-    && pip install -e .[eval]
+    && pip install --upgrade pip \
+    && pip install -e .
 
+COPY ./ckpts /workspace/F5-TTS/ckpts
 ENV SHELL=/bin/bash
 
 WORKDIR /workspace/F5-TTS
+
+# Expose the port your application runs on
+EXPOSE 7860
+
+# Command to start your application with share link
+CMD ["f5-tts_infer-gradio", "--port", "7860", "--host", "0.0.0.0"]

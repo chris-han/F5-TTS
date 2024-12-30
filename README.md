@@ -27,7 +27,7 @@ conda create -n f5-tts python=3.11
 conda activate f5-tts
 
 # Install pytorch with your CUDA version, e.g.
-pip install torch==2.3.1 torchvision==0.18.1 torchaudio==2.3.1 --index-url https://download.pytorch.org/whl/cu121
+pip install torch==2.4.0 torchvision==0.19.0 torchaudio==2.4.0 --index-url https://download.pytorch.org/whl/cu124
 ```
 
 Then you can choose from a few options below:
@@ -53,6 +53,11 @@ pip install -e .
 ```bash
 # Build from Dockerfile
 docker build -t f5tts:v1 .
+
+docker run -d -p 7860:7860 --name f5tts --gpus all f5tts:v1
+
+
+
 
 # Or pull from GitHub Container Registry
 docker pull ghcr.io/swivid/f5-tts:main
