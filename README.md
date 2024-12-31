@@ -54,8 +54,11 @@ pip install -e .
 # Build from Dockerfile
 docker build -t f5tts:v1 .
 
+# Run docker
 docker run -d -p 7860:7860 --name f5tts --gpus all f5tts:v1
 
+# Run docker for debug
+docker run -it f5tts:v3 /bin/bash
 
 
 

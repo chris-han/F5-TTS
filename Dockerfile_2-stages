@@ -1,0 +1,93 @@
+# --- Builder Stage ---
+    FROM pytorch/pytorch:2.4.1-cuda12.4-cudnn9-devel AS builder
+
+    # Set default shell
+    SHELL ["/bin/bash", "-c"]
+    
+    WORKDIR /workspace
+    
+# Force rebuild ARG
+ARG REBUILD_TRIGGER=1
+
+    # Copy only necessary files for build (pyproject.toml, src, setup.py, etc.)
+    COPY pyproject.toml ./
+    COPY src /workspace/src
+    
+# Install the package and its dependencies and create the whl file
+RUN pip wheel . 2>&1 | tee install_builder_log.txt
+    RUN cat install_builder_log.txt
+    
+    # Debug: sys.path
+    RUN /opt/conda/bin/python -c "import sys; print(sys.path)"
+    
+    # Debug: which python3.11
+    RUN which python3.11
+    
+    # Diagnostic: List contents of /usr/local/lib/ in builder before and after pip install
+    RUN echo "Contents of /usr/local/lib/ in builder BEFORE PIP:" && ls -la /usr/local/lib
+    RUN echo "Contents of /opt/conda/lib/python3.11/site-packages BEFORE PIP:" && ls -la /opt/conda/lib/python3.11/site-packages
+    RUN echo "Contents of /opt/conda/lib/python3.11/site-packages AFTER PIP:" && ls -la /opt/conda/lib/python3.11/site-packages
+    RUN echo "Contents of /usr/local/lib/ in builder AFTER PIP:" && ls -la /usr/local/lib
+    
+# Find the generated whl file in builder stage
+RUN mkdir /workspace/wheel
+RUN find /workspace -name "*.whl" -exec cp {} /workspace/wheel \;
+RUN find /workspace -name "*.whl" -print -exec cp {} /workspace/wheel \; # Add -print to see if any files are found
+
+# --- Debugging Step: Unpack the wheel and list contents ---
+# RUN mkdir /workspace/wheel_extracted
+# RUN pip install wheel
+# RUN /opt/conda/bin/python -m wheel unpack /workspace/wheel/*.whl -d /workspace/wheel_extracted
+# RUN ls /workspace/wheel/*.whl # List the contents of the wheel dir to see if we find a whl file
+# RUN if [ -n "$(ls /workspace/wheel/*.whl)" ]; then \
+#     /opt/conda/bin/python -m wheel unpack /workspace/wheel/*.whl -d /workspace/wheel_extracted; \
+#   else \
+#     echo "No .whl file found in /workspace/wheel/, skipping wheel unpack."; \
+#   fi
+# RUN find /workspace/wheel_extracted -name "f5_tts" -exec ls -la {} \;
+
+    # --- Runtime Stage ---
+    FROM pytorch/pytorch:2.4.1-cuda12.4-cudnn9-runtime AS runtime
+    
+    # Set default shell
+SHELL ["/bin/bash", "-c"]
+    
+    # Metadata label
+    LABEL github_repo="https://github.com/chris-han/F5-TTS.git"
+    
+    WORKDIR /workspace
+    
+# Copy the wheel file from the builder stage
+COPY --from=builder /workspace/wheel/*.whl /workspace/
+
+# Diagnostic: List contents of site-packages before pip install
+RUN echo "Contents of /opt/conda/lib/python3.11/site-packages BEFORE PIP:" && ls -la /opt/conda/lib/python3.11/site-packages
+
+# Install the package from wheel including its dependencies
+RUN pip install --no-deps $(ls /workspace/*.whl) > install_runtime_log.txt 2>&1
+RUN cat install_runtime_log.txt
+
+# Diagnostic: List contents of site-packages after pip install
+RUN echo "Contents of /opt/conda/lib/python3.11/site-packages AFTER PIP:" && ls -la /opt/conda/lib/python3.11/site-packages
+
+# Clean __pycache__ directories.
+RUN find /opt/conda/lib/python3.11/site-packages -type d -name "__pycache__" -exec rm -rf {} +
+
+# Create the 'ckpts' directory if it doesn't exist and then copy the ckpts into it
+RUN mkdir -p /opt/conda/lib/python3.11/ckpts
+COPY ckpts /opt/conda/lib/python3.11/ckpts/
+
+# *** CLEAN UP WORKSPACE AFTER CKPT COPY ***
+RUN rm -rf /workspace/*
+
+RUN echo "Listing f5_tts directory:" && ls -la /opt/conda/lib/python3.11/site-packages/f5_tts
+    
+# Robust chmod for executable
+RUN find /opt/conda/lib/python3.11/site-packages/f5_tts -name "f5-tts_infer-gradio" -exec chmod +x {} \;
+            
+RUN echo "Permissions of f5-tts_infer-gradio:" && find /opt/conda/lib/python3.11/site-packages/f5_tts -name "f5-tts_infer-gradio" -exec ls -l {} \;
+    
+    RUN echo "Listing files in /usr/local/bin after install in runtime:" && ls -la /usr/local/bin
+
+    # Start the application
+    CMD ["f5-tts_infer-gradio", "--port", "7860", "--host", "0.0.0.0"]
