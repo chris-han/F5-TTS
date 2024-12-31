@@ -16,10 +16,21 @@ RUN set -x \
 
 WORKDIR /workspace
 
-RUN git clone -b dev https://github.com/chris-han/F5-TTS.git \
+# Fetch the latest changes from the git repository before cloning to check if anything changed
+RUN git init && git remote add origin https://github.com/chris-han/F5-TTS.git && git fetch --depth 1 origin dev
+ARG GIT_COMMIT_HASH=$(git rev-parse FETCH_HEAD)
+
+# check to see if previous git hash was set and if it is the same then skip the clone step
+ARG PREVIOUS_GIT_COMMIT_HASH
+RUN if [ "$PREVIOUS_GIT_COMMIT_HASH" != "$GIT_COMMIT_HASH" ]; then \
+    echo "Git commit changed, performing git clone and install"; \
+    git clone -b dev https://github.com/chris-han/F5-TTS.git \
     && cd F5-TTS \
     && pip install --no-cache-dir --upgrade pip \
-    && pip install --no-cache-dir -e .
+    && pip install --no-cache-dir -e .; \
+    else \
+    echo "Git commit has not changed, skipping git clone and install"; \
+fi
 
 COPY ./ckpts /workspace/F5-TTS/ckpts
 ENV SHELL=/bin/bash
