@@ -147,11 +147,9 @@ def load_checkpoint(model, ckpt_path, device, use_ema=True):
 
 def load_model(model_cls, model_cfg, ckpt_path, vocab_file="", ode_method=ode_method, use_ema=True, device=device):
     if vocab_file == "":
+        vocab_file = str(files("f5_tts").joinpath("infer/examples/vocab.txt"))
         if not os.path.exists(vocab_file):
             vocab_file = ""
-        else:
-            vocab_file = str(files("f5_tts").joinpath("infer/examples/vocab.txt"))
-            
 
     tokenizer = "custom"
 

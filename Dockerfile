@@ -9,7 +9,7 @@ LABEL github_repo="https://github.com/chris-han/F5-TTS.git"
 
 RUN set -x \
     && apt-get update \
-    && apt-get -y install --no-install-recommends wget curl openssl unzip aria2 \
+    && apt-get -y install --no-install-recommends wget curl openssl unzip aria2 git \
     && apt-get install -y --no-install-recommends openssh-server sox libsox-fmt-all libsox-fmt-mp3 libsndfile1-dev ffmpeg \
     && rm -rf /var/lib/apt/lists/* \
     && apt-get clean
